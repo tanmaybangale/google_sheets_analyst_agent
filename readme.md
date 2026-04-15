@@ -115,7 +115,7 @@ The agent deployed on the Vertex AI Agent Engine uses the Vertex AI Reasoning de
 4. Click **Save**.
 
 
-### STEP 4: Registering tp the Agent we deployed on Vertex AI Agent Engine
+### STEP 4: Registering the Agent we deployed on Vertex AI Agent Engine to Gemini Enterprise
 1. In the Google Cloud console, go to the [Gemini Enterprise page](https://console.cloud.google.com/gemini-enterprise/start).
 2. Select the App you created, Click "+ Add agents"
 3. Click "Custom agent via Agent Engine*
