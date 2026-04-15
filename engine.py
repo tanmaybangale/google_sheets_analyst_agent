@@ -17,13 +17,12 @@ import pandas as pd
 import uuid
 import re
 import datetime
-import requests # Used for Metadata identity search
-from typing import Dict, List, Tuple
-from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
-from google.cloud import storage
+import requests # Standard requests for Metadata
+from typing import Dict, List, Tuple, Optional
+from googleapiclient.http import MediaIoBaseDownload
 
 # Absolute import for root-level deployment (Important for Cloud Run/ADK)
-from .config import get_logger, GCS_OUTPUT_BUCKET
+from .config import get_logger
 
 logger = get_logger(__name__)
 
@@ -66,7 +65,7 @@ class SheetDataEngine:
                 df.columns = [f"col_{i}" for i in range(len(df.columns))]
                 
         return df
-
+    
     def _detect_and_split_tables(self, df: pd.DataFrame) -> List[pd.DataFrame]:
         """Detects and splits multiple tables in a dataframe separated by empty rows/cols."""
         null_rows = df.isna().all(axis=1)
@@ -127,7 +126,7 @@ class SheetDataEngine:
             safe_file_id = re.sub(r'[^a-zA-Z0-9]', '_', file_id)
             
             try:
-                meta = drive_service.files().get(fileId=file_id, fields='name, mimeType').execute()
+                meta = drive_service.files().get(fileId=file_id, fields='name, mimeType', supportsAllDrives=True).execute()
                 mime = meta.get('mimeType')
                 original_name = meta.get('name', 'Unknown')
                 
@@ -135,7 +134,7 @@ class SheetDataEngine:
                 self.original_formats[file_id] = ext
                 
                 raw_path = os.path.join(temp_dir, f"raw_{file_id}{ext}")
-                request = drive_service.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') if 'google-apps.spreadsheet' in mime else drive_service.files().get_media(fileId=file_id)
+                request = drive_service.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') if 'google-apps.spreadsheet' in mime else drive_service.files().get_media(fileId=file_id, supportsAllDrives=True)
                 
                 logger.info(f"Downloading {original_name}...")
                 with open(raw_path, 'wb') as fh:
@@ -189,75 +188,20 @@ class SheetDataEngine:
 
         return f"Files ready for analysis.\n\n{mega_schema}"
 
-    def execute_sql(self, sql_query: str) -> str:
-        """Executes DuckDB SQL and returns results or a secure v4 download link."""
+    def execute_sql(self, sql_query: str) -> Tuple[str, Optional[pd.DataFrame]]:
+        """Executes DuckDB SQL and returns results summary and optional DataFrame."""
         try:
             logger.info(f"Executing SQL: {sql_query}")
             result = self.con.execute(sql_query)
-            if result is None: return "Query executed successfully (0 rows)."
+            if result is None: return "Query executed successfully (0 rows).", None
             
             df = result.df()
             row_count = len(df)
             
             if row_count <= 10:
-                return f"Query Success ({row_count} rows):\n{df.to_string()}"
+                return f"Query Success ({row_count} rows):\n{df.to_string()}", None
             else:
-                # Returns the TRUE Signed URL (Clickable Download Link)
-                download_url = self._upload_to_gcs(df)
-                return (
-                    f"Query Success. Generated {row_count} rows.\n\n"
-                    f"📥 **[Click here to download your report]({download_url})**\n\n"
-                    f"*(Note: This secure link will expire in 24 hours.)*"
-                )
+                summary = f"Query Success. Generated {row_count} rows. Data is available for charting via artifacts."
+                return summary, df
         except Exception as e:
-            return f"SQL Error: {str(e)}"
-
-    def _upload_to_gcs(self, df: pd.DataFrame) -> str:
-        """Uploads to GCS and returns an Authenticated Browser Link (No private key required)."""
-        from google.cloud import storage
-        import google.auth
-        import datetime
-        import uuid
-        import os
-        import tempfile
-
-        # 1. Initialize using environment credentials (no private key needed)
-        credentials, project = google.auth.default()
-        client = storage.Client(credentials=credentials, project=project)
-        bucket = client.bucket(GCS_OUTPUT_BUCKET)
-        
-        # 2. Setup path and filename
-        unique_id = uuid.uuid4().hex[:8]
-        filename = f"report_{unique_id}.csv"
-        # Organization by date
-        gcs_path = f"reports/{datetime.datetime.now().strftime('%Y-%m-%d')}/{filename}"
-        blob = bucket.blob(gcs_path)
-        
-        # 3. Save and Upload
-        temp_csv = os.path.join(tempfile.gettempdir(), filename)
-        df.to_csv(temp_csv, index=False)
-        # Content-type ensures the browser treats it as a CSV
-        blob.upload_from_filename(temp_csv, content_type='text/csv')
-        os.remove(temp_csv)
-        
-        # 4. THE FIX: The Authenticated Browser URL
-        # This link checks the user's Google Login instead of a mathematical signature.
-        # It works 100% in ADK environments because it doesn't require a private key.
-        authenticated_url = f"https://storage.cloud.google.com/{GCS_OUTPUT_BUCKET}/{gcs_path}"
-        
-        return authenticated_url
-
-    def format_and_upload(self, local_csv_path: str, new_name: str, drive_service) -> str:
-        """Uploads a generated file back to Google Drive."""
-        if new_name.endswith('.xlsx'):
-            df = pd.read_csv(local_csv_path)
-            export_path = local_csv_path.replace('.csv', '.xlsx')
-            df.to_excel(export_path, index=False, engine='openpyxl')
-            local_csv_path = export_path
-
-        try:
-            media = MediaFileUpload(local_csv_path, resumable=True)
-            uploaded = drive_service.files().create(body={'name': new_name}, media_body=media, fields='webViewLink').execute()
-            return f"Success! File uploaded: {uploaded.get('webViewLink')}"
-        except Exception as e:
-            return f"Upload failed: {e}"
+            return f"SQL Error: {str(e)}", None

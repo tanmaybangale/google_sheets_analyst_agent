@@ -1,11 +1,11 @@
-# 📊 Excel Sheet Analyst - Version 1
+# 📊 Excel Sheet Analyst - Version 2
 
-This production-grade agent uses **Gemini 2.5 Flash** and **DuckDB** to perform high-performance SQL analysis on Google Drive spreadsheets. It is optimized for the **Vertex AI Agent Engine (Reasoning Engine)** using the Google ADK framework.
+This production-grade agent uses **Gemini 2.5 Flash** and **DuckDB** to perform high-performance SQL analysis on Google Drive spreadsheets. It is optimized for the **Vertex AI Agent Engine (Reasoning Engine)** using the Google ADK framework. You can easily interact with it by integrating into Gemini Enterprise.
 
 ---
 
 ## 🛡️ Key Features
-* **Keyless v4 Signed URLs**: Uses the `iam.Signer` logic in `engine.py` to generate secure, 24-hour download links without needing a service account JSON key file.
+* **Artifact-Based Data Passing**: Uses ADK artifacts to securely pass large datasets to the code execution agent for charting.
 * **Atomic Data Chain**: Forced "Download → Query" flow in `prompts.py` ensures data is analyzed before serverless instances reset.
 * **SQL Robustness**: Uses `ILIKE` with wildcard gap-mapping to handle messy human-entered text in spreadsheets.
 * **In-Memory Processing**: Leverages DuckDB for lightning-fast analysis of large CSVs and Excel files directly in RAM.
@@ -21,7 +21,7 @@ The agent uses a modular architecture. All files must remain in the root directo
 ├── agent.py          # ADK Agent definition & tool binding
 ├── auth.py           # OAuth2 token extraction & Drive service builder
 ├── config.py         # Env validation & centralized logging
-├── engine.py         # DuckDB logic & Keyless v4 Signed URL generation
+├── engine.py         # DuckDB logic & SQL execution
 ├── prompts.py        # System instructions & SQL strategies
 ├── tools.py          # Flat wrappers for AI tool-calling
 ├── requirements.txt  # Pinned production dependencies
@@ -35,29 +35,11 @@ Before deploying, follow these navigation steps in the [Google Cloud Console](ht
 
 ### 1. Enable Required APIs
 * Navigate to **APIs & Services > Library**.
-* Search for and **Enable** the following four APIs:
+* Search for and **Enable** the following two APIs:
     1.  `Vertex AI API` (`aiplatform.googleapis.com`)
-    2.  `Cloud Storage API` (`storage.googleapis.com`)
-    3.  `IAM Service Account Credentials API` (`iamcredentials.googleapis.com`)
-    4.  `Google Drive API` (`drive.googleapis.com`)
+    2.  `Google Drive API` (`drive.googleapis.com`)
 
-### 2. Configure IAM Permissions (The "Keyless" Setup)
-The Agent Engine needs permission to sign tokens to generate secure download links.
-* Go to **IAM & Admin > IAM**.
-* Check the box **"Include Google-provided role grants"** on the right side of the page.
-* Locate the Member named: `service-{PROJECT_NUMBER}@gcp-sa-aiplatform-re.iam.gserviceaccount.com` (Reasoning Engine Service Agent).
-* Click the **Edit (Pencil)** icon and click **Add Another Role**.
-* Select the following roles:
-    * **Service Account Token Creator**: Allows the agent to sign download URLs.
-    * **Storage Object Admin**: Allows the agent to upload reports to your bucket.
-
-### 3. Create Storage Bucket
-* Navigate to **Cloud Storage > Buckets**.
-* Click **Create**.
-* Name your bucket (e.g., `my-reports-bucket`) and select a region (e.g., `us-central1`).
-* Click **Create**. (Keep this name for your `.env` file).
-
-### 4. Create OAuth 2.0 Credentials
+### 2. Create OAuth 2.0 Credentials
 * Navigate to **APIs & Services > OAuth Consent Screen**. Configure it for your organization.
 * Go to **Credentials > Create Credentials > OAuth Client ID**.
 * Select **Web Application**.
@@ -78,8 +60,6 @@ GOOGLE_CLOUD_LOCATION=""
 # This forces the Unified SDK to use the Vertex AI backend (Enterprise)
 GOOGLE_GENAI_USE_VERTEXAI="True"
 
-# GCS Output Configuration
-GCS_OUTPUT_BUCKET=""
 
 # --- OAuth 2.0 for End-User Drive Access ---
 GOOGLE_CLIENT_ID=""
@@ -118,10 +98,8 @@ The agent deployed on the Vertex AI Agent Engine uses the Vertex AI Reasoning de
 1. Go to Google cloud console, IAM
 2. Tick the check box on top right "Include Google-provided role grants"
 3. Locate the account with email : `service-PROJECT_NUMBER@gcp-sa-aiplatform-re.iam.gserviceaccount.com`. (If you don't see this account, ensure you have run adk deploy at least once.)
-4. Edit permissions, Add `Storage Object User` (For reading and writing to GCS files), `Service Usage Consumer` 
+4. Edit permissions, Add `Service Usage Consumer` (Storage permissions are no longer needed as we use ADK Artifacts).
 
-Provide the Service Account permission on google sheets as well.
-* **Editor** access to your Google Sheets (Master Config & Custom Sellers).
 
 ## Create Gemini Enterprise App
 1. In the Google Cloud console, go to the [Gemini Enterprise page](https://console.cloud.google.com/gemini-enterprise/start).
@@ -162,8 +140,8 @@ You will see a new agent is added and Enabled.
 1. In the Google Cloud console, go to the [Gemini Enterprise page](https://console.cloud.google.com/gemini-enterprise/start).
 2. Click 'Agents' on the left, Select you agent showing down the page. 
 3. You will land onto your agent's chat window. 
-4. Place your file in GCS input bucket and write "HI" or "Process my file" in the chat, and you will see the complete code run
-5. At the last you will find a link of your report, that's generated by your agent after file processing.
+4. Provide the Google Drive File ID or Google Sheet Link to the agent and ask your question (e.g., "Analyze the data in file <ID>").
+5. The agent will process the data and provide insights. If charts are needed for large datasets, it will use ADK artifacts.
 
 ---
 

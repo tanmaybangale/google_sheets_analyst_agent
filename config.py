@@ -22,7 +22,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
 LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION")
 USE_VERTEXAI = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "False").lower() == "true"
-GCS_OUTPUT_BUCKET = os.getenv("GCS_OUTPUT_BUCKET")
 
 # Dynamic Log Level for debugging the complex multi-file engine (Default: INFO)
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -76,10 +75,6 @@ if not LOCATION:
     init_logger.error("GOOGLE_CLOUD_LOCATION is missing from the environment.")
     raise ValueError("CRITICAL: GOOGLE_CLOUD_LOCATION is missing from the .env file.")
     
-if not GCS_OUTPUT_BUCKET:
-    init_logger.error("GCS_OUTPUT_BUCKET is missing from the environment.")
-    raise ValueError("CRITICAL: GCS_OUTPUT_BUCKET is missing from the .env file.")
-
 if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
     init_logger.warning("OAuth Client ID or Secret is missing. End-user Google Drive login will fail.")
 

@@ -60,20 +60,16 @@ def execute_sql_on_file(sql_query: str, file_paths: str) -> str:
     Executes DuckDB SQL across the downloaded files.
     """
     logger.info("--- Tool Called: execute_sql_on_file ---")
-    # Failsafe removed to support Atomic Workflow in serverless environments
-    return data_engine.execute_sql(sql_query)
-
-def upload_to_drive(local_file_path: str, new_file_name: str, tool_context: ToolContext) -> str:
-    """
-    Uploads a generated report to Google Drive and matches the original file format.
-    """
-    logger.info(f"--- Tool Called: upload_to_drive for {local_file_path} ---")
+    summary, df = data_engine.execute_sql(sql_query)
     
-    drive_service = get_drive_service(tool_context)
-    if not drive_service: 
-        return "Error: Authentication missing. Please refresh the chat to log in again."
+    if df is not None:
+        import tempfile
+        temp_file = os.path.join(tempfile.gettempdir(), "last_query_result.csv")
+        df.to_csv(temp_file, index=False)
+        logger.info(f"Saved query result to {temp_file} for artifact processing.")
+        summary += f"\n\n[System Note: Data saved for artifact processing. Use `get_sql_report_csv` to load it for charting.]"
         
-    return data_engine.format_and_upload(local_file_path, new_file_name, drive_service)
+    return summary
 
 def list_drive_folder(folder_url: str, tool_context: ToolContext) -> str:
     """
@@ -108,3 +104,19 @@ def list_drive_folder(folder_url: str, tool_context: ToolContext) -> str:
     except Exception as e:
         logger.error(f"Folder scan failed: {e}")
         return f"Scan failed: {e}"
+
+async def get_sql_report_csv(tool_context: ToolContext) -> str:
+    """
+    Loads the last SQL query result artifact and returns its content as a string.
+    Use this to get the data for charting if the dataset is large.
+    """
+    logger.info("--- Tool Called: get_sql_report_csv ---")
+    try:
+        csv_artifact = await tool_context.load_artifact(filename="last_report.csv")
+        if csv_artifact and csv_artifact.inline_data:
+            csv_content = csv_artifact.inline_data.data.decode('utf-8')
+            return csv_content
+        else:
+            return "Error: Artifact 'last_report.csv' not found. Please ensure it was generated."
+    except Exception as e:
+        return f"An unexpected error occurred while loading artifact: {e}"
