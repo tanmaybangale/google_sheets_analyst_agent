@@ -1,4 +1,4 @@
-# 📊 Excel Sheet Analyst - Version 2
+# 📊 Google Sheets Analyst Agent
 
 This production-grade agent uses **Gemini 2.5 Flash** and **DuckDB** to perform high-performance SQL analysis on Google Drive spreadsheets. It is optimized for the **Vertex AI Agent Engine (Reasoning Engine)** using the Google ADK framework. You can easily interact with it by integrating into Gemini Enterprise.
 
@@ -82,13 +82,13 @@ Activate your python virtual environment
 python3 -m venv .venv       #Python virtual environment creation
 source .venv/bin/activate  #Activate the virtual environment
 pip3 install -r requirements.txt #install required dependencies
-cd EXCEL_SHEET_ANALYSIS_AGENT_V1
+cd google-sheets-analyst-agent
 ```
 
 ### Deploy the agent in Vertex AI Agent Engine
 ```bash
 adk deploy agent_engine \
-  --display_name="Excel Analysis Agent" .
+  --display_name="Google Sheets Analyst Agent" .
 ```
 Wait for it to successfully deploy. Copy the **resource ID** you will see on the screen after a successful deployment for later use.
 
