@@ -134,7 +134,7 @@ The agent deployed on the Vertex AI Agent Engine uses the Vertex AI Reasoning de
 
 You will see a new agent is added and Enabled.
 1. Click on the Agent name, go to "User permission tab"
-2. Click "+Add agent"
+2. Click "+Add User"
 3. You can choose your preferred choice, if this agent will be exposed to every user of Gemini Enterprise app then select "All Users", Assign Role "Agent User"
 4. Click **Save**
 
