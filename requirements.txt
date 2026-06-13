@@ -1,11 +1,15 @@
-google-adk
+google-adk==1.26.0
 google-api-python-client
 google-auth
 google-cloud-storage
+google-genai
 duckdb
 pandas
 openpyxl
 fastapi
+uvicorn
 python-dotenv
 numpy
 requests
+python-calamine
+pyarrow
