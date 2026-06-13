@@ -1,0 +1,4 @@
+{
+  "entrypoint_module": "google_sheets_analyst_agent.agent",
+  "entrypoint_object": "root_agent"
+}
